@@ -1,6 +1,7 @@
 // OfflineLedger — WatermelonDB Database Singleton
 import { Database } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
+import { Platform } from 'react-native';
 import { schema } from './schema';
 import { User } from './models/User';
 import { Document } from './models/Document';
@@ -10,7 +11,7 @@ import { AdvanceEntry } from './models/AdvanceEntry';
 const adapter = new SQLiteAdapter({
   schema,
   dbName: 'offlineledger',
-  jsi: true,          // Use JSI for best performance on RN 0.71+
+  jsi: Platform.OS === 'ios',
   onSetUpError: error => {
     console.error('[WatermelonDB] Setup error:', error);
   },

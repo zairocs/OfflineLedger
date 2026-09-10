@@ -226,7 +226,7 @@ export function LockScreen() {
       const instance = getBiometricsInstance();
       if (!instance) return;
       const { success } = await instance.simplePrompt({
-        promptMessage: 'Unlock OfflineLedger with Fingerprint',
+        promptMessage: 'Unlock RB Co. with Fingerprint',
         cancelButtonText: 'Use PIN',
       });
       if (success) {
@@ -356,7 +356,7 @@ export function LockScreen() {
         <View style={styles.logoCircle}>
           <Text style={styles.logoEmoji}>🛡️</Text>
         </View>
-        <Text style={styles.appName}>OfflineLedger</Text>
+        <Text style={styles.appName}>RB Co.</Text>
         <Text style={styles.tagline}>Encrypted & Saved 100% Offline</Text>
       </View>
 

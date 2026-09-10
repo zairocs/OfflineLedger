@@ -9,16 +9,16 @@ export function getInitials(name: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-/** Deterministic avatar background color based on name hash */
+/** Deterministic avatar background color based on name hash (Grayscale Palette) */
 const AVATAR_COLORS = [
-  '#2E4F70', // navy
-  '#10B981', // emerald
-  '#8B5CF6', // purple
-  '#F59E0B', // amber
-  '#EF4444', // red
-  '#3B82F6', // blue
-  '#EC4899', // pink
-  '#14B8A6', // teal
+  '#222222', // charcoal
+  '#333333', // dark gray
+  '#4D4D4D', // slate gray
+  '#666666', // mid gray
+  '#1A1A1A', // onyx
+  '#555555', // granite
+  '#3A3A3A', // graphite
+  '#2A2A2A', // jet
 ];
 
 export function getAvatarColor(name: string): string {
@@ -88,6 +88,24 @@ export function formatTime(date: Date): string {
     minute: '2-digit',
     hour12: true,
   });
+}
+
+/** Format a Date with Day, Date, and Time, e.g. "Monday, Jan 15, 2025 at 02:45 PM" */
+export function formatDateTimeDay(date: Date | number | null | undefined): string {
+  if (!date) return '';
+  const d = typeof date === 'number' ? new Date(date) : date;
+  const dayName = d.toLocaleDateString('en-PK', { weekday: 'long' });
+  const formattedDate = d.toLocaleDateString('en-PK', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const formattedTime = d.toLocaleTimeString('en-PK', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${dayName}, ${formattedDate} at ${formattedTime}`;
 }
 
 /** Auto-format Pakistani phone number (e.g. 03xx-xxxxxxx) */

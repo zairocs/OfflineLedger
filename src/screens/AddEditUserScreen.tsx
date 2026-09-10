@@ -83,9 +83,9 @@ export function AddEditUserScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      title: isEdit ? 'Edit Client' : 'Add New Client',
+      title: 'RB Co.',
     });
-  }, [navigation, isEdit]);
+  }, [navigation]);
 
   // Load existing user data if editing
   useEffect(() => {
@@ -181,7 +181,7 @@ export function AddEditUserScreen() {
 
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Save Failed', err?.message ?? 'Could not save worker');
+      Alert.alert('Save Failed', err?.message ?? 'Could not save client');
     } finally {
       setSaving(false);
     }
@@ -212,6 +212,14 @@ export function AddEditUserScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Screen Title Area */}
+        <View style={styles.titleArea}>
+          <Text style={styles.screenTitle}>{isEdit ? 'Edit Client' : 'Add Client'}</Text>
+          <Text style={styles.screenSubtitle}>
+            {isEdit ? 'Update client details and record' : 'Create a new client profile'}
+          </Text>
+        </View>
+
         {/* Avatar picker at top */}
         <View style={styles.avatarSection}>
           <Avatar
@@ -378,9 +386,23 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: darkColors.background },
   content: {
     paddingHorizontal: spacing[4],
-    paddingTop: spacing[5],
+    paddingTop: spacing[3],
     paddingBottom: spacing[12],
     gap: spacing[1],
+  },
+  titleArea: {
+    paddingBottom: spacing[4],
+    gap: 2,
+  },
+  screenTitle: {
+    ...typography.h1,
+    color: darkColors.textPrimary,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  screenSubtitle: {
+    ...typography.bodySmall,
+    color: darkColors.textSecondary,
   },
   avatarSection: {
     alignItems: 'center',

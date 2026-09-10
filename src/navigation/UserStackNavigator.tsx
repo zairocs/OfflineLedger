@@ -41,7 +41,7 @@ export function UserStackNavigator() {
       <Stack.Screen
         name="UserList"
         component={UserListScreen}
-        options={{ title: 'Clients' }}
+        options={{ title: 'RB Co.' }}
       />
       <Stack.Screen
         name="UserDetail"
@@ -51,9 +51,7 @@ export function UserStackNavigator() {
       <Stack.Screen
         name="AddEditUser"
         component={AddEditUserScreen}
-        options={({ route }) => ({
-          title: route.params?.userId ? 'Edit Client' : 'Add Client',
-        })}
+        options={{ title: 'RB Co.' }}
       />
     </Stack.Navigator>
   );

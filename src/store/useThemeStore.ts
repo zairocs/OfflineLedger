@@ -11,7 +11,7 @@ interface ThemeStore {
 }
 
 export const useThemeStore = create<ThemeStore>((set) => ({
-  themeMode: 'system',
+  themeMode: 'dark',
 
   initTheme: () => {
     try {

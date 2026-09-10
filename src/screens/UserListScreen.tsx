@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserCard } from '../components/UserCard';
 import { User } from '../db/models/User';
 import { usersCollection } from '../db';
@@ -20,14 +21,17 @@ import { darkColors } from '../theme/colors';
 import { typography, fontWeight } from '../theme/typography';
 import { spacing, radius, shadow } from '../theme/spacing';
 import { UserStackParamList } from '../navigation/UserStackNavigator';
+import { GenericNotesModal } from '../components/GenericNotesModal';
 
 type NavProp = StackNavigationProp<UserStackParamList, 'UserList'>;
 
 export function UserListScreen() {
   const navigation = useNavigation<NavProp>();
+  const insets = useSafeAreaInsets();
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
 
   // Subscribe to the users collection — re-renders automatically on any DB change
   useEffect(() => {
@@ -87,12 +91,24 @@ export function UserListScreen() {
   const ListHeader = useCallback(
     () => (
       <View style={styles.headerContainer}>
-        {/* Screen Title */}
-        <View style={styles.titleArea}>
-          <Text style={styles.screenTitle}>Clients</Text>
-          <Text style={styles.screenSubtitle}>
-            {filteredUsers.length} of {allUsers.length} registered clients
-          </Text>
+        {/* Screen Title Row */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleArea}>
+            <Text style={styles.screenTitle}>Clients</Text>
+            <Text style={styles.screenSubtitle}>
+              {filteredUsers.length} of {allUsers.length} registered clients
+            </Text>
+          </View>
+
+          {/* Generic Notes Button */}
+          <TouchableOpacity
+            style={styles.notesButton}
+            onPress={() => setNotesModalOpen(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.notesButtonIcon}>📝</Text>
+            <Text style={styles.notesButtonText}>Notes</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Search bar */}
@@ -119,6 +135,8 @@ export function UserListScreen() {
     ),
     [query, allUsers.length, filteredUsers.length],
   );
+
+  const fabBottom = Math.max(insets.bottom, 12) + 108;
 
   if (loading) {
     return (
@@ -153,12 +171,18 @@ export function UserListScreen() {
 
       {/* Floating Action Button */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: fabBottom }]}
         onPress={handleAddPress}
         activeOpacity={0.85}
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+
+      {/* Generic Notes Modal */}
+      <GenericNotesModal
+        visible={notesModalOpen}
+        onClose={() => setNotesModalOpen(false)}
+      />
     </View>
   );
 }
@@ -193,8 +217,33 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[3],
     gap: spacing[3],
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   titleArea: {
     gap: 2,
+    flex: 1,
+  },
+  notesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: darkColors.surfaceVariant,
+    paddingHorizontal: spacing[3] + 2,
+    paddingVertical: spacing[2],
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: darkColors.border,
+  },
+  notesButtonIcon: {
+    fontSize: 16,
+  },
+  notesButtonText: {
+    ...typography.labelMedium,
+    color: darkColors.textPrimary,
+    fontWeight: fontWeight.bold,
   },
   screenTitle: {
     ...typography.h1,

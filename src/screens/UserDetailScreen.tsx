@@ -66,7 +66,7 @@ export function UserDetailScreen() {
     let sub: any;
     usersCollection.findAndObserve(userId).subscribe(u => {
       setUser(u);
-      if (u) navigation.setOptions({ title: u.name });
+      if (u) navigation.setOptions({ title: 'RB Co.' });
       setLoading(false);
     });
     return () => sub?.unsubscribe?.();
@@ -179,7 +179,6 @@ export function UserDetailScreen() {
             >
               {tab.label}
             </Text>
-            {activeTab === tab.id && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
         ))}
       </View>
@@ -295,24 +294,28 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     backgroundColor: darkColors.surface,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[2],
     borderBottomWidth: 1,
     borderBottomColor: darkColors.border,
+    gap: spacing[1],
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing[2] + 2,
-    position: 'relative',
+    justifyContent: 'center',
+    paddingVertical: spacing[2],
+    borderRadius: radius.md,
     gap: 2,
   },
-  tabItemActive: {},
+  tabItemActive: {
+    backgroundColor: darkColors.surfaceVariant,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
   tabIcon:  { fontSize: 18 },
   tabLabel: { ...typography.labelSmall, color: darkColors.textDisabled, fontSize: 11 },
-  tabLabelActive: { color: darkColors.primary, fontWeight: fontWeight.semibold },
-  tabIndicator: {
-    position: 'absolute', bottom: 0, left: '20%', right: '20%',
-    height: 2.5, backgroundColor: darkColors.primary, borderRadius: 2,
-  },
+  tabLabelActive: { color: darkColors.textPrimary, fontWeight: fontWeight.bold },
 
   // Tab content
   tabContent: { flex: 1 },

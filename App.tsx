@@ -16,18 +16,19 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AppDarkTheme, AppLightTheme } from './src/theme';
+import { darkColors, lightColors } from './src/theme/colors';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useThemeStore } from './src/store/useThemeStore';
 
 const NAV_DARK_THEME = {
   dark: true,
   colors: {
-    primary:      '#F0A500',
-    background:   '#0D1B2A',
-    card:         '#1B2E45',
+    primary:      '#FFFFFF',
+    background:   '#121212',
+    card:         '#222222',
     text:         '#FFFFFF',
-    border:       '#2E4F70',
-    notification: '#F0A500',
+    border:       '#333333',
+    notification: '#D8D8D8',
   },
   fonts: {
     regular:  { fontFamily: 'Roboto',        fontWeight: '400' as const },
@@ -40,12 +41,12 @@ const NAV_DARK_THEME = {
 const NAV_LIGHT_THEME = {
   dark: false,
   colors: {
-    primary:      '#1B2E45',
-    background:   '#F9FAFB',
+    primary:      '#1A1A1A',
+    background:   '#F5F5F5',
     card:         '#FFFFFF',
-    text:         '#111827',
-    border:       '#E5E7EB',
-    notification: '#10B981',
+    text:         '#0A0A0A',
+    border:       '#D8D8D8',
+    notification: '#4D4D4D',
   },
   fonts: {
     regular:  { fontFamily: 'Roboto',        fontWeight: '400' as const },
@@ -78,8 +79,9 @@ function App() {
         <PaperProvider theme={paperTheme}>
           <StatusBar
             barStyle={isDark ? 'light-content' : 'dark-content'}
-            backgroundColor={isDark ? '#0D1B2A' : '#F9FAFB'}
+            backgroundColor={isDark ? darkColors.background : lightColors.background}
             translucent={false}
+            animated={true}
           />
           <NavigationContainer theme={navTheme}>
             <RootNavigator />

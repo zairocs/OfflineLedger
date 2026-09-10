@@ -244,6 +244,12 @@ export function SettingsScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* Screen Title Area */}
+      <View style={styles.titleArea}>
+        <Text style={styles.screenTitle}>Settings</Text>
+        <Text style={styles.screenSubtitle}>Manage preferences, security & backup</Text>
+      </View>
+
       {/* ── Backup & Restore ──────────────────────────────────────────── */}
       <SectionLabel text={t('backup.title')} />
 
@@ -333,6 +339,23 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: darkColors.background },
   content: { padding: spacing[4], paddingBottom: spacing[12] },
+
+  titleArea: {
+    paddingHorizontal: spacing[1],
+    paddingTop: spacing[1],
+    paddingBottom: spacing[3],
+    gap: 2,
+  },
+  screenTitle: {
+    ...typography.h1,
+    color: darkColors.textPrimary,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  screenSubtitle: {
+    ...typography.bodySmall,
+    color: darkColors.textSecondary,
+  },
 
   sectionLabel: {
     flexDirection: 'row',
