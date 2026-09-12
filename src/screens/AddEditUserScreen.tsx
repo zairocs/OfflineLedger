@@ -15,9 +15,11 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Avatar } from '../components/Avatar';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { useImagePicker } from '../hooks/useImagePicker';
 import { database, usersCollection } from '../db';
 import { User } from '../db/models/User';
+import { deletePrivateFile } from '../utils/fileStorage';
 import { darkColors } from '../theme/colors';
 import { typography, fontWeight } from '../theme/typography';
 import { spacing, radius } from '../theme/spacing';
@@ -61,6 +63,10 @@ export function AddEditUserScreen() {
     totalBalance: '',
   });
   const [saving, setSaving] = useState(false);
+
+  // Delete modal state
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [isDeleting, setIsDeleting]                     = useState(false);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -187,6 +193,24 @@ export function AddEditUserScreen() {
     }
   }, [form, isEdit, existingUser, navigation]);
 
+  const handleDeleteClient = useCallback(async () => {
+    if (!existingUser) return;
+    setIsDeleting(true);
+    try {
+      if (existingUser.avatarPath) {
+        await deletePrivateFile(existingUser.avatarPath);
+      }
+      await existingUser.deleteWithRelated();
+      setConfirmDeleteVisible(false);
+      navigation.goBack();
+    } catch (err: any) {
+      console.warn('[AddEditUserScreen] Delete client failed:', err);
+      Alert.alert('Error', 'Could not delete client');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [existingUser, navigation]);
+
   const handleFieldFocus = useCallback((yOffset?: number) => {
     setTimeout(() => {
       if (yOffset !== undefined) {
@@ -293,7 +317,7 @@ export function AddEditUserScreen() {
           onChange={setField('totalBalance')}
           placeholder="0"
           keyboardType="numeric"
-          hint="This is the total salary or agreed amount for this worker"
+          hint="This is the total salary or agreed amount for this client"
           onFocusOffset={() => handleFieldFocus(480)}
         />
 
@@ -308,10 +332,36 @@ export function AddEditUserScreen() {
             <ActivityIndicator color={darkColors.textOnPrimary} />
           ) : (
             <Text style={styles.saveBtnText}>
-              {isEdit ? 'Save Changes' : 'Add Worker'}
+              {isEdit ? 'Save Changes' : 'Add Client'}
             </Text>
           )}
         </TouchableOpacity>
+
+        {/* Delete Client button (Only shown in Edit mode) */}
+        {isEdit && existingUser && (
+          <TouchableOpacity
+            style={styles.deleteClientBtn}
+            onPress={() => setConfirmDeleteVisible(true)}
+            disabled={saving || isDeleting}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.deleteClientBtnText}>🗑 Delete Client Profile</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Delete Confirmation Popup */}
+        <ConfirmDeleteModal
+          visible={confirmDeleteVisible}
+          title="Delete Client"
+          message={
+            existingUser
+              ? `Are you sure you want to permanently delete ${existingUser.name} and ALL associated records (documents, notes, balance)?`
+              : ''
+          }
+          loading={isDeleting}
+          onConfirm={handleDeleteClient}
+          onCancel={() => setConfirmDeleteVisible(false)}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -438,6 +488,21 @@ const styles = StyleSheet.create({
     color: darkColors.textOnPrimary,
     fontWeight: fontWeight.bold,
     fontSize: 16,
+  },
+  deleteClientBtn: {
+    backgroundColor: 'rgba(229, 57, 53, 0.12)',
+    borderRadius: radius.xl,
+    paddingVertical: spacing[4],
+    alignItems: 'center',
+    marginTop: spacing[3],
+    borderWidth: 1,
+    borderColor: 'rgba(229, 57, 53, 0.35)',
+  },
+  deleteClientBtnText: {
+    ...typography.labelLarge,
+    color: '#E53935',
+    fontWeight: fontWeight.bold,
+    fontSize: 15,
   },
 });
 

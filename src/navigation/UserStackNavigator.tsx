@@ -1,6 +1,7 @@
 // OfflineLedger — User Stack Navigator
 // Handles the navigation stack inside the Users tab
 import React from 'react';
+import { View, Text, Image } from 'react-native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { UserListScreen } from '../screens/UserListScreen';
 import { AddEditUserScreen } from '../screens/AddEditUserScreen';
@@ -15,6 +16,35 @@ export type UserStackParamList = {
 };
 
 const Stack = createStackNavigator<UserStackParamList>();
+
+function HeaderTitleWithLogo({ title }: { title: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <View
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 15,
+          backgroundColor: '#101010',
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.18)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Image
+          source={require('../assets/logo.png')}
+          style={{ width: 30, height: 30, borderRadius: 15 }}
+          resizeMode="cover"
+        />
+      </View>
+      <Text style={{ color: darkColors.textPrimary, fontWeight: fontWeight.bold, fontSize: 18 }}>
+        {title}
+      </Text>
+    </View>
+  );
+}
 
 export function UserStackNavigator() {
   return (
@@ -41,7 +71,9 @@ export function UserStackNavigator() {
       <Stack.Screen
         name="UserList"
         component={UserListScreen}
-        options={{ title: 'RB Co.' }}
+        options={{
+          headerTitle: () => <HeaderTitleWithLogo title="RB Co." />,
+        }}
       />
       <Stack.Screen
         name="UserDetail"
@@ -51,8 +83,11 @@ export function UserStackNavigator() {
       <Stack.Screen
         name="AddEditUser"
         component={AddEditUserScreen}
-        options={{ title: 'RB Co.' }}
+        options={{
+          headerTitle: () => <HeaderTitleWithLogo title="RB Co." />,
+        }}
       />
     </Stack.Navigator>
   );
 }
+

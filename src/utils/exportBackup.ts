@@ -26,8 +26,10 @@ const TEMP_RESTORE_DIR = `${RNFS.CachesDirectoryPath}/ol_restore_temp`;
 async function findDatabasePath(): Promise<string | null> {
   const filesDir = RNFS.DocumentDirectoryPath;
   const appDataDir = filesDir.replace(/\/files$/, '');
-  const candidateDirs = [`${appDataDir}/databases`, filesDir];
+  const candidateDirs = [appDataDir, `${appDataDir}/databases`, filesDir];
   const candidateNames = [
+    'rb_co.db',
+    'rb_co',
     'offlineledger.db',
     'offlineledger',
     'watermelon.db',
@@ -40,14 +42,28 @@ async function findDatabasePath(): Promise<string | null> {
       for (const name of candidateNames) {
         const fullPath = `${dir}/${name}`;
         if (await RNFS.exists(fullPath)) {
-          return fullPath;
+          try {
+            const stat = await RNFS.stat(fullPath);
+            if (stat.size > 0) {
+              return fullPath;
+            }
+          } catch (e) {
+            // Ignore stat error
+          }
         }
       }
+    }
+  }
+
+  // Fallback: Return any non-zero DB file
+  for (const dir of candidateDirs) {
+    if (await RNFS.exists(dir)) {
       try {
         const items = await RNFS.readDir(dir);
         for (const item of items) {
           if (
             item.isFile() &&
+            item.size > 0 &&
             (item.name.endsWith('.db') ||
               item.name.includes('ledger') ||
               item.name.includes('watermelon'))
@@ -69,13 +85,8 @@ async function ensureDatabasePath(): Promise<string> {
 
   const filesDir = RNFS.DocumentDirectoryPath;
   const appDataDir = filesDir.replace(/\/files$/, '');
-  const dbDir = `${appDataDir}/databases`;
+  const defaultDbPath = `${appDataDir}/offlineledger.db`;
 
-  if (!(await RNFS.exists(dbDir))) {
-    await RNFS.mkdir(dbDir).catch(() => {});
-  }
-
-  const defaultDbPath = `${dbDir}/offlineledger.db`;
   if (!(await RNFS.exists(defaultDbPath))) {
     await RNFS.writeFile(defaultDbPath, '', 'utf8').catch(() => {});
   }
@@ -131,7 +142,20 @@ export async function exportBackup(): Promise<string> {
   try {
     // 2. Ensure SQLite DB path exists (creates file if not initialized yet)
     const dbPath = await ensureDatabasePath();
+    await RNFS.copyFile(dbPath, `${TEMP_BACKUP_DIR}/rb_co.db`);
     await RNFS.copyFile(dbPath, `${TEMP_BACKUP_DIR}/offlineledger.db`);
+
+    // Copy WAL / SHM files if present so uncommitted transactions are included
+    const walPath = `${dbPath}-wal`;
+    if (await RNFS.exists(walPath)) {
+      await RNFS.copyFile(walPath, `${TEMP_BACKUP_DIR}/rb_co.db-wal`).catch(() => {});
+      await RNFS.copyFile(walPath, `${TEMP_BACKUP_DIR}/offlineledger.db-wal`).catch(() => {});
+    }
+    const shmPath = `${dbPath}-shm`;
+    if (await RNFS.exists(shmPath)) {
+      await RNFS.copyFile(shmPath, `${TEMP_BACKUP_DIR}/rb_co.db-shm`).catch(() => {});
+      await RNFS.copyFile(shmPath, `${TEMP_BACKUP_DIR}/offlineledger.db-shm`).catch(() => {});
+    }
 
     // 3. Copy media directory (avatars + docs)
     const mediaExists = await RNFS.exists(MEDIA_DIR);
@@ -140,7 +164,7 @@ export async function exportBackup(): Promise<string> {
     }
 
     // 4. Create ZIP archive in guaranteed-writable Cache directory
-    const fileName = `OfflineLedger_backup_${timestamp()}.zip`;
+    const fileName = `RB_Co_backup_${timestamp()}.zip`;
     const primaryZipPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
 
     if (await RNFS.exists(primaryZipPath)) {
@@ -222,12 +246,17 @@ export async function restoreBackup(): Promise<void> {
   const result = results?.[0];
   if (!result) return;
 
+  const uri = result.uri;
   const fileCopyUri = (result as any).fileCopyUri;
-  const rawUri = fileCopyUri || result.uri;
+  const rawUri = fileCopyUri || uri;
   if (!rawUri) throw new Error('Could not access the selected backup file.');
 
   const fileName = result.name ?? rawUri;
-  if (!fileName.toLowerCase().endsWith('.zip') && !rawUri.toLowerCase().endsWith('.zip')) {
+  if (
+    !fileName.toLowerCase().endsWith('.zip') &&
+    !rawUri.toLowerCase().endsWith('.zip') &&
+    !uri.toLowerCase().endsWith('.zip')
+  ) {
     throw new Error('Please select a valid .zip backup file.');
   }
 
@@ -237,74 +266,179 @@ export async function restoreBackup(): Promise<void> {
     await RNFS.unlink(localZipPath).catch(() => {});
   }
 
-  // 2. Resolve content:// provider or encoded URI into physical file path
-  let sourcePath = rawUri;
-  if (sourcePath.startsWith('content://')) {
-    const rawMatch = sourcePath.match(/document\/raw%3A(.+)$/i) || sourcePath.match(/document\/raw:(.+)$/i);
-    if (rawMatch?.[1]) {
-      sourcePath = decodeURIComponent(rawMatch[1]);
+  let fileCopied = false;
+
+  // Option A: Try copying from fileCopyUri if it's a valid local file path
+  if (fileCopyUri && typeof fileCopyUri === 'string') {
+    const cleanCopyPath = decodeURIComponent(fileCopyUri).replace(/^file:\/\//, '');
+    try {
+      if (await RNFS.exists(cleanCopyPath)) {
+        await RNFS.copyFile(cleanCopyPath, localZipPath);
+        fileCopied = await RNFS.exists(localZipPath);
+      }
+    } catch (e) {
+      console.warn('[restoreBackup] Copy from fileCopyUri failed:', e);
     }
   }
 
-  const cleanSourcePath = decodeURIComponent(sourcePath).replace(/^file:\/\//, '');
-
-  // 3. Copy file to local cache path
-  try {
-    if (await RNFS.exists(cleanSourcePath)) {
-      await RNFS.copyFile(cleanSourcePath, localZipPath);
-    } else if (rawUri.startsWith('file://')) {
-      await RNFS.copyFile(rawUri.replace(/^file:\/\//, ''), localZipPath);
-    } else if (fileCopyUri) {
-      const copyPath = decodeURIComponent(fileCopyUri).replace(/^file:\/\//, '');
-      if (await RNFS.exists(copyPath)) {
-        await RNFS.copyFile(copyPath, localZipPath);
+  // Option B: Resolve raw file path if URI contains document/raw:
+  if (!fileCopied && uri && uri.startsWith('content://')) {
+    const rawMatch = uri.match(/document\/raw%3A(.+)$/i) || uri.match(/document\/raw:(.+)$/i);
+    if (rawMatch?.[1]) {
+      const rawPath = decodeURIComponent(rawMatch[1]);
+      try {
+        if (await RNFS.exists(rawPath)) {
+          await RNFS.copyFile(rawPath, localZipPath);
+          fileCopied = await RNFS.exists(localZipPath);
+        }
+      } catch (e) {
+        console.warn('[restoreBackup] Copy from rawPath failed:', e);
       }
     }
-  } catch (copyErr) {
-    console.warn('[restoreBackup] Copy to cache warning:', copyErr);
   }
 
-  const zipFileToUnzip = (await RNFS.exists(localZipPath)) ? localZipPath : cleanSourcePath;
+  // Option C: Try direct copy if raw URI is a file:// path
+  if (!fileCopied && rawUri.startsWith('file://')) {
+    const cleanRawPath = decodeURIComponent(rawUri).replace(/^file:\/\//, '');
+    try {
+      if (await RNFS.exists(cleanRawPath)) {
+        await RNFS.copyFile(cleanRawPath, localZipPath);
+        fileCopied = await RNFS.exists(localZipPath);
+      }
+    } catch (e) {
+      console.warn('[restoreBackup] Direct file:// copy failed:', e);
+    }
+  }
 
-  // 4. Clean + create temp restore dir
+  // Option D (Failsafe for Android ContentProvider URIs like msf:35):
+  // Reads content stream via RNFS.readFile(uri, 'base64') and writes to localZipPath
+  if (!fileCopied && uri && uri.startsWith('content://')) {
+    try {
+      const base64Data = await RNFS.readFile(uri, 'base64');
+      if (base64Data && base64Data.length > 0) {
+        await RNFS.writeFile(localZipPath, base64Data, 'base64');
+        fileCopied = await RNFS.exists(localZipPath);
+      }
+    } catch (base64Err) {
+      console.warn('[restoreBackup] ContentProvider base64 read failed:', base64Err);
+    }
+  }
+
+  if (!fileCopied || !(await RNFS.exists(localZipPath))) {
+    throw new Error(
+      'Could not read the selected backup file. Please select the .zip file directly from your Downloads folder.',
+    );
+  }
+
+  // 2. Clean + create temp restore dir
   if (await RNFS.exists(TEMP_RESTORE_DIR)) {
     await RNFS.unlink(TEMP_RESTORE_DIR).catch(() => {});
   }
   await RNFS.mkdir(TEMP_RESTORE_DIR);
 
-  // 5. Unzip
-  await unzip(zipFileToUnzip, TEMP_RESTORE_DIR);
+  // 3. Unzip
+  await unzip(localZipPath, TEMP_RESTORE_DIR);
 
-  // 3. Verify archive has expected content
-  const dbRestorePath = `${TEMP_RESTORE_DIR}/offlineledger.db`;
-  const dbValid = await RNFS.exists(dbRestorePath);
-  if (!dbValid) {
+  // 4. Locate database file in extracted directory (checking rb_co.db, offlineledger.db, or any .db)
+  let dbRestorePath = '';
+  const possibleDbNames = ['rb_co.db', 'offlineledger.db', 'watermelon.db'];
+
+  for (const name of possibleDbNames) {
+    const candidate = `${TEMP_RESTORE_DIR}/${name}`;
+    if (await RNFS.exists(candidate)) {
+      dbRestorePath = candidate;
+      break;
+    }
+  }
+
+  if (!dbRestorePath) {
+    try {
+      const items = await RNFS.readDir(TEMP_RESTORE_DIR);
+      for (const item of items) {
+        if (item.isFile() && item.name.endsWith('.db')) {
+          dbRestorePath = item.path;
+          break;
+        } else if (item.isDirectory()) {
+          const subItems = await RNFS.readDir(item.path);
+          for (const sub of subItems) {
+            if (sub.isFile() && sub.name.endsWith('.db')) {
+              dbRestorePath = sub.path;
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  if (!dbRestorePath || !(await RNFS.exists(dbRestorePath))) {
     await RNFS.unlink(TEMP_RESTORE_DIR).catch(() => {});
+    await RNFS.unlink(localZipPath).catch(() => {});
     throw new Error(
-      'Invalid backup file. The selected ZIP does not contain an OfflineLedger database.',
+      'Invalid backup file. The selected ZIP does not contain a valid RB Co. database.',
     );
   }
 
-  // 4. Restore DB file
+  // 5. Restore DB file to both root appDataDir and databases subfolder
   const filesDir = RNFS.DocumentDirectoryPath;
   const appDataDir = filesDir.replace(/\/files$/, '');
   const dbDir = `${appDataDir}/databases`;
-  if (!(await RNFS.exists(dbDir))) await RNFS.mkdir(dbDir);
-  await RNFS.copyFile(dbRestorePath, `${dbDir}/offlineledger.db`);
+  if (!(await RNFS.exists(dbDir))) await RNFS.mkdir(dbDir).catch(() => {});
 
-  // 5. Restore media files
-  const mediaRestoreDir = `${TEMP_RESTORE_DIR}/media`;
+  const targets = [
+    `${appDataDir}/offlineledger.db`,
+    `${appDataDir}/rb_co.db`,
+    `${dbDir}/offlineledger.db`,
+    `${dbDir}/rb_co.db`,
+  ];
+
+  for (const target of targets) {
+    if (await RNFS.exists(target)) await RNFS.unlink(target).catch(() => {});
+    await RNFS.copyFile(dbRestorePath, target).catch(() => {});
+  }
+
+  // Check if restored archive includes WAL/SHM files
+  const subFolder = dbRestorePath.substring(0, dbRestorePath.lastIndexOf('/'));
+  const restoredWal = `${subFolder}/offlineledger.db-wal`;
+  if (await RNFS.exists(restoredWal)) {
+    await RNFS.copyFile(restoredWal, `${appDataDir}/offlineledger.db-wal`).catch(() => {});
+    await RNFS.copyFile(restoredWal, `${dbDir}/offlineledger.db-wal`).catch(() => {});
+  } else {
+    // Unlink old WAL/SHM/journal files so SQLite reads fresh database state
+    await RNFS.unlink(`${appDataDir}/offlineledger.db-wal`).catch(() => {});
+    await RNFS.unlink(`${appDataDir}/offlineledger.db-shm`).catch(() => {});
+    await RNFS.unlink(`${appDataDir}/offlineledger.db-journal`).catch(() => {});
+    await RNFS.unlink(`${dbDir}/offlineledger.db-wal`).catch(() => {});
+    await RNFS.unlink(`${dbDir}/offlineledger.db-shm`).catch(() => {});
+    await RNFS.unlink(`${dbDir}/offlineledger.db-journal`).catch(() => {});
+  }
+
+  // 6. Restore media files
+  let mediaRestoreDir = `${TEMP_RESTORE_DIR}/media`;
+  if (!(await RNFS.exists(mediaRestoreDir))) {
+    try {
+      const items = await RNFS.readDir(TEMP_RESTORE_DIR);
+      for (const item of items) {
+        if (item.isDirectory()) {
+          const subMedia = `${item.path}/media`;
+          if (await RNFS.exists(subMedia)) {
+            mediaRestoreDir = subMedia;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
   if (await RNFS.exists(mediaRestoreDir)) {
     await copyDirRecursive(mediaRestoreDir, MEDIA_DIR);
   }
 
-  // 6. Clean up temp dir
+  // 7. Clean up temp files
   await RNFS.unlink(TEMP_RESTORE_DIR).catch(() => {});
-
-  // 7. Prompt user to restart
-  Alert.alert(
-    '✅ Restore Complete',
-    'Your data has been restored successfully.\n\nPlease close and reopen the app to load your restored records.',
-    [{ text: 'OK' }],
-  );
+  await RNFS.unlink(localZipPath).catch(() => {});
 }

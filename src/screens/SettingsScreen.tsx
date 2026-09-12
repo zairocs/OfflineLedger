@@ -1,21 +1,23 @@
-// OfflineLedger — Settings Screen
-// Backup/restore, PIN management, Fingerprint setup, and App Info.
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   Alert,
   ActivityIndicator,
   Switch,
+  DevSettings,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
 import { exportBackup, restoreBackup } from '../utils/exportBackup';
+import { ConfirmDeleteModal, ModalVariant } from '../components/ConfirmDeleteModal';
 import { storage, StorageKeys } from '../utils/storage';
 import { formatDate, formatTime } from '../utils/formatters';
 import { darkColors } from '../theme/colors';
@@ -98,6 +100,7 @@ function SectionLabel({ text }: { text: string }) {
 // ── Settings Screen ──────────────────────────────────────────────────────────
 
 export function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const {
     clearPin,
@@ -112,6 +115,18 @@ export function SettingsScreen() {
   const [restoring, setRestoring] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [sensorType, setSensorType] = useState<string>('Fingerprint');
+
+  // Custom Dark Popups state
+  const [exportSuccessPath, setExportSuccessPath]         = useState<string | null>(null);
+  const [restoreConfirmVisible, setRestoreConfirmVisible] = useState(false);
+  const [restoreSuccessVisible, setRestoreSuccessVisible] = useState(false);
+  const [resetPinConfirmVisible, setResetPinConfirmVisible] = useState(false);
+  const [customAlert, setCustomAlert]                     = useState<{
+    title: string;
+    message: string;
+    icon?: string;
+    variant?: ModalVariant;
+  } | null>(null);
 
   // Check biometrics sensor availability
   useEffect(() => {
@@ -139,74 +154,53 @@ export function SettingsScreen() {
     setExporting(true);
     try {
       const zipPath = await exportBackup();
-      const fileName = zipPath.split('/').pop() ?? 'OfflineLedger_backup.zip';
-      Alert.alert(
-        '✅ Backup Saved Successfully',
-        `Your backup file has been created and saved to your Downloads folder!\n\n📄 File: ${fileName}\n📍 Location: ${zipPath}`,
-        [{ text: 'Great!' }],
-      );
+      setExportSuccessPath(zipPath);
     } catch (err: any) {
-      Alert.alert(
-        '❌ Backup Failed',
-        err?.message ?? 'Could not create backup file. Please check device permissions and storage.',
-      );
+      setCustomAlert({
+        title: 'Backup Failed',
+        message: err?.message ?? 'Could not create backup file. Please check storage permissions.',
+        icon: '⚠️',
+        variant: 'danger',
+      });
     } finally {
       setExporting(false);
     }
   }, []);
 
   // ── Restore ──────────────────────────────────────────────────────────────
-  const handleRestore = useCallback(async () => {
-    Alert.alert(
-      '⚠️ Restore Backup',
-      'This will replace ALL current data with the backup. This cannot be undone.\n\nAre you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore',
-          style: 'destructive',
-          onPress: async () => {
-            setRestoring(true);
-            try {
-              await restoreBackup();
-            } catch (err: any) {
-              Alert.alert('Restore Failed', err?.message ?? 'Could not restore backup');
-            } finally {
-              setRestoring(false);
-            }
-          },
-        },
-      ],
-    );
+  const handleConfirmRestore = useCallback(async () => {
+    setRestoreConfirmVisible(false);
+    setRestoring(true);
+    try {
+      await restoreBackup();
+      setRestoreSuccessVisible(true);
+    } catch (err: any) {
+      setCustomAlert({
+        title: 'Restore Failed',
+        message: err?.message ?? 'Could not restore from the selected backup file.',
+        icon: '⚠️',
+        variant: 'danger',
+      });
+    } finally {
+      setRestoring(false);
+    }
   }, []);
 
   // ── Reset PIN ────────────────────────────────────────────────────────────
   const handleResetPin = useCallback(() => {
-    Alert.alert(
-      'Reset PIN',
-      'This will remove your PIN lock and disable biometrics. You will be prompted to set a new PIN on next launch.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            clearPin();
-            Alert.alert('PIN Removed', 'Your PIN has been cleared. Set a new one on next launch.');
-          },
-        },
-      ],
-    );
-  }, [clearPin]);
+    setResetPinConfirmVisible(true);
+  }, []);
 
   // ── Toggle Biometrics ────────────────────────────────────────────────────
   const handleToggleBiometrics = useCallback(
     async (val: boolean) => {
       if (!isPinSet) {
-        Alert.alert(
-          'PIN Required',
-          'Please set up a 4-digit PIN lock first before enabling biometric authentication.',
-        );
+        setCustomAlert({
+          title: 'PIN Required',
+          message: 'Please set up a 4-digit PIN lock first before enabling biometric authentication.',
+          icon: '🔑',
+          variant: 'warning',
+        });
         return;
       }
 
@@ -219,7 +213,12 @@ export function SettingsScreen() {
       try {
         const instance = getBiometricsInstance();
         if (!instance) {
-          Alert.alert('Error', 'Biometrics sensor non-responsive');
+          setCustomAlert({
+            title: 'Biometrics Error',
+            message: 'Biometrics sensor non-responsive or unavailable on device.',
+            icon: '☝️',
+            variant: 'danger',
+          });
           return;
         }
         const { success } = await instance.simplePrompt({
@@ -229,7 +228,12 @@ export function SettingsScreen() {
 
         if (success) {
           setBiometricEnabled(true);
-          Alert.alert('Enabled', `${sensorType} unlock is now active.`);
+          setCustomAlert({
+            title: 'Biometrics Active',
+            message: `${sensorType} unlock is now active.`,
+            icon: '☝️',
+            variant: 'success',
+          });
         }
       } catch (e) {
         // User cancelled prompt
@@ -238,10 +242,12 @@ export function SettingsScreen() {
     [isPinSet, sensorType, setBiometricEnabled],
   );
 
+  const bottomPadding = Math.max(insets.bottom, 12) + 120;
+
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
       showsVerticalScrollIndicator={false}
     >
       {/* Screen Title Area */}
@@ -255,7 +261,7 @@ export function SettingsScreen() {
 
       <View style={styles.card}>
         <SettingRow
-          icon="📦"
+          icon="📤"
           title={t('backup.export')}
           subtitle={lastBackupLabel}
           onPress={handleExport}
@@ -263,10 +269,10 @@ export function SettingsScreen() {
         />
         <View style={styles.divider} />
         <SettingRow
-          icon="🔄"
+          icon="📥"
           title={t('backup.import')}
           subtitle={t('backup.importHint')}
-          onPress={handleRestore}
+          onPress={() => setRestoreConfirmVisible(true)}
           loading={restoring}
         />
       </View>
@@ -310,12 +316,15 @@ export function SettingsScreen() {
       <SectionLabel text="About App" />
 
       <View style={styles.card}>
-        <SettingRow
-          icon="📱"
-          title="OfflineLedger"
-          subtitle="Version 1.0.0 — Privacy Focused Ledger"
-          rightContent={<View />}
-        />
+        <View style={styles.aboutHeaderRow}>
+          <View style={styles.aboutLogoContainer}>
+            <Image source={require('../assets/logo.png')} style={styles.aboutLogo} resizeMode="cover" />
+          </View>
+          <View style={styles.aboutHeaderText}>
+            <Text style={styles.aboutTitle}>OfflineLedger</Text>
+            <Text style={styles.aboutSubtitle}>Version 1.0.0 — Privacy Focused Ledger</Text>
+          </View>
+        </View>
         <View style={styles.divider} />
         <SettingRow
           icon="🔒"
@@ -326,10 +335,92 @@ export function SettingsScreen() {
       </View>
 
       <View style={styles.footerContainer}>
+        <View style={styles.footerLogoContainer}>
+          <Image source={require('../assets/logo.png')} style={styles.footerLogo} resizeMode="cover" />
+        </View>
         <Text style={styles.footerBrand}>OfflineLedger v1.0.0</Text>
         <Text style={styles.footerDev}>Engineered by CORE TECH AI Team</Text>
         <Text style={styles.footerCopy}>© {new Date().getFullYear()} CORE TECH. All Rights Reserved.</Text>
       </View>
+
+      {/* ── Export Success Custom Popup ───────────────────────────────────── */}
+      <ConfirmDeleteModal
+        visible={!!exportSuccessPath}
+        title="Backup Created"
+        icon="📤"
+        variant="success"
+        singleButton
+        message={
+          exportSuccessPath
+            ? `Your backup file has been saved to your Downloads folder!\n\n📄 File: ${exportSuccessPath.split('/').pop()}\n📍 Path: ${exportSuccessPath}`
+            : ''
+        }
+        confirmText="Great!"
+        onConfirm={() => setExportSuccessPath(null)}
+      />
+
+      {/* ── Restore Confirmation Custom Popup ─────────────────────────────── */}
+      <ConfirmDeleteModal
+        visible={restoreConfirmVisible}
+        title="Restore Backup"
+        icon="📥"
+        variant="warning"
+        message="This will replace ALL current client records, notes, and balances with the backup file. This cannot be undone."
+        confirmText="Restore Data"
+        cancelText="Cancel"
+        loading={restoring}
+        onConfirm={handleConfirmRestore}
+        onCancel={() => setRestoreConfirmVisible(false)}
+      />
+
+      {/* ── Restore Success Reload Custom Popup ───────────────────────────── */}
+      <ConfirmDeleteModal
+        visible={restoreSuccessVisible}
+        title="Restore Complete"
+        icon="🎉"
+        variant="success"
+        singleButton
+        message="Your database, profile photos, and documents have been restored successfully! Tap OK to reload the app and load your records."
+        confirmText="OK & Reload App"
+        onConfirm={() => {
+          setRestoreSuccessVisible(false);
+          DevSettings.reload();
+        }}
+      />
+
+      {/* ── Reset PIN Confirmation Popup ─────────────────────────────────── */}
+      <ConfirmDeleteModal
+        visible={resetPinConfirmVisible}
+        title="Reset PIN Code"
+        icon="🔑"
+        variant="danger"
+        message="This will remove your PIN lock and disable biometrics. You will be prompted to set a new PIN on next launch."
+        confirmText="Reset PIN"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setResetPinConfirmVisible(false);
+          clearPin();
+          setCustomAlert({
+            title: 'PIN Removed',
+            message: 'Your PIN has been cleared. Set a new one on next launch.',
+            icon: '🔑',
+            variant: 'info',
+          });
+        }}
+        onCancel={() => setResetPinConfirmVisible(false)}
+      />
+
+      {/* ── Custom Alert Popup ───────────────────────────────────────────── */}
+      <ConfirmDeleteModal
+        visible={!!customAlert}
+        title={customAlert?.title ?? 'Notification'}
+        message={customAlert?.message ?? ''}
+        icon={customAlert?.icon ?? 'ℹ️'}
+        variant={customAlert?.variant ?? 'info'}
+        singleButton
+        confirmText="OK"
+        onConfirm={() => setCustomAlert(null)}
+      />
     </ScrollView>
   );
 }
@@ -440,12 +531,64 @@ const styles = StyleSheet.create({
     color: darkColors.primary,
   },
 
+  aboutHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing[4],
+    gap: spacing[3],
+  },
+  aboutLogoContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#101010',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aboutLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  aboutHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  aboutTitle: {
+    ...typography.labelLarge,
+    color: darkColors.textPrimary,
+    fontWeight: fontWeight.bold,
+  },
+  aboutSubtitle: {
+    ...typography.labelSmall,
+    color: darkColors.textDisabled,
+  },
   footerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing[8],
     marginBottom: spacing[4],
     gap: spacing[1],
+  },
+  footerLogoContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#101010',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[1],
+  },
+  footerLogo: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   footerBrand: {
     ...typography.labelMedium,

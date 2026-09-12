@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Animated,
@@ -354,7 +355,11 @@ export function LockScreen() {
       {/* Header Logo */}
       <View style={styles.logoArea}>
         <View style={styles.logoCircle}>
-          <Text style={styles.logoEmoji}>🛡️</Text>
+          <Image
+            source={require('../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
         <Text style={styles.appName}>RB Co.</Text>
         <Text style={styles.tagline}>Encrypted & Saved 100% Offline</Text>
@@ -433,18 +438,23 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: darkColors.surfaceVariant,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#101010',
     borderWidth: 1.5,
-    borderColor: darkColors.primary,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing[2],
+    overflow: 'hidden',
     ...shadow.md,
   },
-  logoEmoji: { fontSize: 32 },
+  logoImage: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+  },
   appName: {
     ...typography.h1,
     color: darkColors.textPrimary,

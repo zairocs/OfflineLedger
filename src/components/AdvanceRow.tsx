@@ -20,12 +20,7 @@ interface AdvanceRowProps {
 
 export function AdvanceRow({ entry, onDelete }: AdvanceRowProps) {
   return (
-    <TouchableOpacity
-      style={styles.row}
-      onLongPress={() => onDelete(entry)}
-      activeOpacity={0.8}
-      delayLongPress={350}
-    >
+    <View style={styles.row}>
       {/* Left: date + time column */}
       <View style={styles.dateCol}>
         <Text style={styles.date}>{formatDate(entry.createdAt)}</Text>
@@ -58,12 +53,13 @@ export function AdvanceRow({ entry, onDelete }: AdvanceRowProps) {
         <TouchableOpacity
           style={styles.deleteBtn}
           onPress={() => onDelete(entry)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.7}
         >
           <Text style={styles.deleteBtnText}>🗑</Text>
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 

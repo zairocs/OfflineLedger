@@ -88,55 +88,52 @@ export function UserListScreen() {
     [query],
   );
 
-  const ListHeader = useCallback(
-    () => (
-      <View style={styles.headerContainer}>
-        {/* Screen Title Row */}
-        <View style={styles.titleRow}>
-          <View style={styles.titleArea}>
-            <Text style={styles.screenTitle}>Clients</Text>
-            <Text style={styles.screenSubtitle}>
-              {filteredUsers.length} of {allUsers.length} registered clients
-            </Text>
-          </View>
-
-          {/* Generic Notes Button */}
-          <TouchableOpacity
-            style={styles.notesButton}
-            onPress={() => setNotesModalOpen(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.notesButtonIcon}>📝</Text>
-            <Text style={styles.notesButtonText}>Notes</Text>
-          </TouchableOpacity>
+  const renderHeaderElement = (
+    <View style={styles.headerContainer}>
+      {/* Screen Title Row */}
+      <View style={styles.titleRow}>
+        <View style={styles.titleArea}>
+          <Text style={styles.screenTitle}>Clients</Text>
+          <Text style={styles.screenSubtitle}>
+            {filteredUsers.length} of {allUsers.length} registered clients
+          </Text>
         </View>
 
-        {/* Search bar */}
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search clients by name, phone, CNIC..."
-            placeholderTextColor={darkColors.textDisabled}
-            value={query}
-            onChangeText={setQuery}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Text style={styles.clearBtn}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Generic Notes Button */}
+        <TouchableOpacity
+          style={styles.notesButton}
+          onPress={() => setNotesModalOpen(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.notesButtonIcon}>📝</Text>
+          <Text style={styles.notesButtonText}>Notes</Text>
+        </TouchableOpacity>
       </View>
-    ),
-    [query, allUsers.length, filteredUsers.length],
+
+      {/* Search bar */}
+      <View style={styles.searchBar}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search clients by name, phone, CNIC..."
+          placeholderTextColor={darkColors.textDisabled}
+          value={query}
+          onChangeText={setQuery}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => setQuery('')}>
+            <Text style={styles.clearBtn}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
   );
 
-  const fabBottom = Math.max(insets.bottom, 12) + 108;
+  const fabBottom = Math.max(insets.bottom, 12) + 85;
 
   if (loading) {
     return (
@@ -153,10 +150,11 @@ export function UserListScreen() {
         data={filteredUsers}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={renderHeaderElement}
         ListEmptyComponent={EmptyState}
         contentContainerStyle={[
           styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 12) + 150 },
           filteredUsers.length === 0 && styles.listContentEmpty,
         ]}
         ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
@@ -179,10 +177,12 @@ export function UserListScreen() {
       </TouchableOpacity>
 
       {/* Generic Notes Modal */}
-      <GenericNotesModal
-        visible={notesModalOpen}
-        onClose={() => setNotesModalOpen(false)}
-      />
+      {notesModalOpen && (
+        <GenericNotesModal
+          visible={notesModalOpen}
+          onClose={() => setNotesModalOpen(false)}
+        />
+      )}
     </View>
   );
 }
@@ -317,12 +317,13 @@ const styles = StyleSheet.create({
     backgroundColor: darkColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 99,
     ...shadow.lg,
     // Gold glow effect
     shadowColor: darkColors.primary,
     shadowOpacity: 0.45,
     shadowRadius: 14,
-    elevation: 10,
+    elevation: 12,
   },
   fabIcon: {
     fontSize: 30,

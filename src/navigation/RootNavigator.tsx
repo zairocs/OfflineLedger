@@ -1,7 +1,7 @@
 // OfflineLedger — Root Navigator with Sliding Pill Tab Animation
 import React, { useEffect, useRef } from 'react';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Text, View, Image, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserStackNavigator } from './UserStackNavigator';
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -165,12 +165,32 @@ export function RootNavigator() {
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTitleStyle: {
-            color: darkColors.textPrimary,
-            fontWeight: '700',
-            fontSize: 18,
-          },
-          headerTitle: 'RB Co.',
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  backgroundColor: '#101010',
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255, 255, 255, 0.18)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Image
+                  source={require('../assets/logo.png')}
+                  style={{ width: 30, height: 30, borderRadius: 15 }}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={{ color: darkColors.textPrimary, fontWeight: '700', fontSize: 18 }}>
+                RB Co.
+              </Text>
+            </View>
+          ),
         }}
       />
     </Tab.Navigator>
