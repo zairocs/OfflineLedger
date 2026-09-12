@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Q } from '@nozbe/watermelondb';
 import { Note } from '../db/models/Note';
 import { database, notesCollection } from '../db';
+import { CustomModal } from './CustomModal';
 import { darkColors } from '../theme/colors';
 import { typography, fontWeight } from '../theme/typography';
 import { spacing, radius } from '../theme/spacing';
@@ -112,30 +113,30 @@ export function GenericNotesModal({ visible, onClose }: GenericNotesModalProps) 
     }
   }, [editContent, selectedNote]);
 
-  // Delete a note
+  // Delete modal state
+  const [deleteTargetNote, setDeleteTargetNote] = useState<Note | null>(null);
+  const [isDeletingNote, setIsDeletingNote]     = useState(false);
+
+  // Delete a note trigger
   const handleDeleteNote = useCallback((note: Note) => {
-    Alert.alert(
-      'Delete Note',
-      'Are you sure you want to delete this note?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await database.write(async () => {
-                await note.destroyPermanently();
-              });
-            } catch (err) {
-              console.warn('[GenericNotesModal] Delete note error:', err);
-              Alert.alert('Error', 'Failed to delete note.');
-            }
-          },
-        },
-      ],
-    );
+    setDeleteTargetNote(note);
   }, []);
+
+  // Confirm delete note
+  const handleConfirmDeleteNote = useCallback(async () => {
+    if (!deleteTargetNote) return;
+    setIsDeletingNote(true);
+    try {
+      await database.write(async () => {
+        await deleteTargetNote.destroyPermanently();
+      });
+      setDeleteTargetNote(null);
+    } catch (err) {
+      console.warn('[GenericNotesModal] Delete note error:', err);
+    } finally {
+      setIsDeletingNote(false);
+    }
+  }, [deleteTargetNote]);
 
   // Back from editor to list
   const handleBackToList = useCallback(() => {
@@ -297,6 +298,20 @@ export function GenericNotesModal({ visible, onClose }: GenericNotesModalProps) 
             showsVerticalScrollIndicator={false}
           />
         )}
+
+        {/* Delete Note Custom Modal (Danger: 2 buttons, Cancel gray & Delete Red) */}
+        <CustomModal
+          visible={Boolean(deleteTargetNote)}
+          title="Delete Note"
+          icon="🗑️"
+          variant="danger"
+          message="Are you sure you want to delete this note? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          loading={isDeletingNote}
+          onConfirm={handleConfirmDeleteNote}
+          onCancel={() => setDeleteTargetNote(null)}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );

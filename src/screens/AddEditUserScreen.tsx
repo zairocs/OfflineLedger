@@ -14,6 +14,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { useImagePicker } from '../hooks/useImagePicker';
 import { database, usersCollection } from '../db';
@@ -44,6 +45,7 @@ interface FormState {
 export function AddEditUserScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProps>();
+  const insets = useSafeAreaInsets();
   const userId = route.params?.userId;
   const isEdit = Boolean(userId);
 
@@ -207,7 +209,7 @@ export function AddEditUserScreen() {
         style={styles.screen}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: spacing[12] + keyboardPadding },
+          { paddingBottom: Math.max(insets.bottom, 12) + 170 + keyboardPadding },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -293,7 +295,7 @@ export function AddEditUserScreen() {
           onChange={setField('totalBalance')}
           placeholder="0"
           keyboardType="numeric"
-          hint="This is the total salary or agreed amount for this worker"
+          hint="This is the total salary or agreed amount for this client"
           onFocusOffset={() => handleFieldFocus(480)}
         />
 
@@ -308,7 +310,7 @@ export function AddEditUserScreen() {
             <ActivityIndicator color={darkColors.textOnPrimary} />
           ) : (
             <Text style={styles.saveBtnText}>
-              {isEdit ? 'Save Changes' : 'Add Worker'}
+              {isEdit ? 'Save Changes' : 'Add Client'}
             </Text>
           )}
         </TouchableOpacity>

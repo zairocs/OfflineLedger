@@ -53,11 +53,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   initFromStorage: () => {
     try {
       const isPinSet = storage.getBoolean(StorageKeys.PIN_IS_SET) ?? false;
-      const isLocked = storage.getBoolean(StorageKeys.IS_LOCKED) ?? true;
       const isBiometricEnabled = storage.getBoolean(StorageKeys.BIOMETRIC_ENABLED) ?? false;
       set({
         isPinSet,
-        isLocked: isPinSet ? isLocked : false,
+        isLocked: isPinSet, // Always lock on fresh app launch if PIN is configured
         isBiometricEnabled,
       });
     } catch (e) {

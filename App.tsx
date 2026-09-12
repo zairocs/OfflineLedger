@@ -9,7 +9,7 @@
 import './src/locales/i18n';
 
 import React, { useEffect } from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { AppState, StatusBar, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -64,6 +64,20 @@ function App() {
   useEffect(() => {
     initFromStorage();
     initTheme();
+
+    // Auto-lock app whenever it goes to background, recent apps, or phone screen is locked
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        const { isPinSet, lock } = useAuthStore.getState();
+        if (isPinSet) {
+          lock();
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [initFromStorage, initTheme]);
 
   // Determine active theme

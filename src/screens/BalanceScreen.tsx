@@ -27,6 +27,7 @@ import { AdvanceRow } from '../components/AdvanceRow';
 import { AdvanceEntry } from '../db/models/AdvanceEntry';
 import { User } from '../db/models/User';
 import { database, usersCollection, advancesCollection } from '../db';
+import { CustomModal } from '../components/CustomModal';
 import { darkColors } from '../theme/colors';
 import { typography, fontWeight } from '../theme/typography';
 import { spacing, radius } from '../theme/spacing';
@@ -184,7 +185,7 @@ function EditBalanceModal({
         <View style={styles.editModal}>
           <Text style={styles.addModalTitle}>Set Total Balance</Text>
           <Text style={styles.editModalHint}>
-            This is the total agreed salary or contract amount for this worker.
+            This is the total agreed salary or contract amount for this client.
           </Text>
           <TextInput
             style={[styles.input, styles.inputLarge]}
@@ -266,21 +267,23 @@ export function BalanceScreen({ userId }: BalanceScreenProps) {
     [userId],
   );
 
-  // ── Delete advance ───────────────────────────────────────────────────────
+  const [deleteTargetEntry, setDeleteTargetEntry] = useState<AdvanceEntry | null>(null);
+
+  // ── Delete advance trigger ───────────────────────────────────────────────
   const handleDeleteAdvance = useCallback((entry: AdvanceEntry) => {
-    Alert.alert(
-      'Delete Advance',
-      `Delete this advance of PKR ${entry.amount.toLocaleString()}? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => database.write(() => entry.destroyPermanently()),
-        },
-      ],
-    );
+    setDeleteTargetEntry(entry);
   }, []);
+
+  // ── Confirm delete advance ───────────────────────────────────────────────
+  const handleConfirmDeleteAdvance = useCallback(async () => {
+    if (!deleteTargetEntry) return;
+    try {
+      await database.write(() => deleteTargetEntry.destroyPermanently());
+      setDeleteTargetEntry(null);
+    } catch (err) {
+      console.warn('[BalanceScreen] Delete advance error:', err);
+    }
+  }, [deleteTargetEntry]);
 
   // ── Update total balance ─────────────────────────────────────────────────
   const handleSaveTotalBalance = useCallback(
@@ -379,6 +382,23 @@ export function BalanceScreen({ userId }: BalanceScreenProps) {
           onClose={() => setEditVisible(false)}
         />
       )}
+
+      {/* Delete Advance Custom Modal (Danger: 2 buttons, Cancel gray & Delete Red) */}
+      <CustomModal
+        visible={Boolean(deleteTargetEntry)}
+        title="Delete Advance"
+        icon="🗑️"
+        variant="danger"
+        message={
+          deleteTargetEntry
+            ? `Delete this advance record of PKR ${deleteTargetEntry.amount.toLocaleString()}? This cannot be undone.`
+            : ''
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDeleteAdvance}
+        onCancel={() => setDeleteTargetEntry(null)}
+      />
     </View>
   );
 }

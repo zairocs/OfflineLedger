@@ -26,6 +26,7 @@ import { formatDate } from '../utils/formatters';
 import { UserStackParamList } from '../navigation/UserStackNavigator';
 import { copyImageToPrivateStorage, deletePrivateFile } from '../utils/fileStorage';
 import { useImagePicker } from '../hooks/useImagePicker';
+import { CustomModal } from '../components/CustomModal';
 
 type NavProp  = StackNavigationProp<UserStackParamList, 'UserDetail'>;
 type RoutePr  = RouteProp<UserStackParamList, 'UserDetail'>;
@@ -45,9 +46,11 @@ export function UserDetailScreen() {
   const route      = useRoute<RoutePr>();
   const { userId } = route.params;
 
-  const [user, setUser]       = useState<User | null>(null);
-  const [activeTab, setTab]   = useState<TabId>('profile');
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]                 = useState<User | null>(null);
+  const [activeTab, setTab]             = useState<TabId>('profile');
+  const [loading, setLoading]           = useState(true);
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [isDeleting, setIsDeleting]     = useState(false);
 
   const { pickFromGallery } = useImagePicker({
     subDir: 'avatars',
@@ -81,26 +84,24 @@ export function UserDetailScreen() {
   }, [navigation, userId]);
 
   const handleDelete = useCallback(() => {
+    setConfirmDeleteVisible(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
     if (!user) return;
-    Alert.alert(
-      'Delete Client',
-      `This will permanently delete ${user.name} and ALL their data (documents, notes, balance). This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            // Clean up avatar file
-            if (user.avatarPath) {
-              await deletePrivateFile(user.avatarPath);
-            }
-            await user.deleteWithRelated();
-            navigation.goBack();
-          },
-        },
-      ],
-    );
+    setIsDeleting(true);
+    try {
+      if (user.avatarPath) {
+        await deletePrivateFile(user.avatarPath);
+      }
+      await user.deleteWithRelated();
+      setConfirmDeleteVisible(false);
+      navigation.goBack();
+    } catch (err) {
+      console.warn('[UserDetailScreen] Delete client failed:', err);
+    } finally {
+      setIsDeleting(false);
+    }
   }, [user, navigation]);
 
   if (loading) {
@@ -114,7 +115,7 @@ export function UserDetailScreen() {
   if (!user) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Worker not found.</Text>
+        <Text style={styles.errorText}>Client not found.</Text>
       </View>
     );
   }
@@ -191,6 +192,24 @@ export function UserDetailScreen() {
         {activeTab === 'balance'   && <BalanceScreen   userId={userId} />}
         {activeTab === 'receipts'  && <ReceiptsScreen  userId={userId} />}
       </View>
+
+      {/* Delete Client Custom Modal (Danger: 2 buttons, Cancel gray & Delete Red) */}
+      <CustomModal
+        visible={confirmDeleteVisible}
+        title="Delete Client"
+        icon="🗑️"
+        variant="danger"
+        message={
+          user
+            ? `Are you sure you want to permanently delete ${user.name} and ALL associated records (documents, notes, balance)?`
+            : ''
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDeleteVisible(false)}
+      />
     </View>
   );
 }

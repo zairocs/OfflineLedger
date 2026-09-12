@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  AppState,
 } from 'react-native';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import { useAuthStore } from '../store/useAuthStore';
@@ -242,8 +243,23 @@ export function LockScreen() {
     if (mode === 'unlock' && biometricAvail && isBiometricEnabled && !syncing) {
       triggerBiometric();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [biometricAvail, isBiometricEnabled]);
+  }, [mode, biometricAvail, isBiometricEnabled, syncing, triggerBiometric]);
+
+  // Re-trigger biometric prompt when app comes back to foreground (e.g. phone unlock)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (
+        nextState === 'active' &&
+        mode === 'unlock' &&
+        biometricAvail &&
+        isBiometricEnabled &&
+        !syncing
+      ) {
+        triggerBiometric();
+      }
+    });
+    return () => subscription.remove();
+  }, [mode, biometricAvail, isBiometricEnabled, syncing, triggerBiometric]);
 
   // ── Shake animation for wrong PIN ────────────────────────────────────────
   const triggerShake = useCallback(() => {

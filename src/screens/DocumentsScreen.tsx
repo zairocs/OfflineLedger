@@ -24,6 +24,7 @@ import { useImagePicker } from '../hooks/useImagePicker';
 import { Document } from '../db/models/Document';
 import { database, documentsCollection } from '../db';
 import { deletePrivateFile, toImageUri } from '../utils/fileStorage';
+import { CustomModal } from '../components/CustomModal';
 import { darkColors } from '../theme/colors';
 import { typography, fontWeight } from '../theme/typography';
 import { spacing, radius, shadow } from '../theme/spacing';
@@ -171,26 +172,31 @@ export function DocumentsScreen({ userId }: DocumentsScreenProps) {
     [documents],
   );
 
-  // ── Long-press delete ─────────────────────────────────────────────────────
+  // Delete document state
+  const [deleteTargetDoc, setDeleteTargetDoc] = useState<Document | null>(null);
+  const [isDeletingDoc, setIsDeletingDoc]     = useState(false);
+
+  // ── Long-press delete trigger ──────────────────────────────────────────────
   const handleDocLongPress = useCallback((doc: Document) => {
-    Alert.alert(
-      'Delete Document',
-      `Delete "${doc.title || 'this document'}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            // 1. Delete the physical file from app-private storage
-            await deletePrivateFile(doc.imagePath);
-            // 2. Remove the DB record
-            await database.write(() => doc.destroyPermanently());
-          },
-        },
-      ],
-    );
+    setDeleteTargetDoc(doc);
   }, []);
+
+  // ── Confirm delete document ────────────────────────────────────────────────
+  const handleConfirmDeleteDoc = useCallback(async () => {
+    if (!deleteTargetDoc) return;
+    setIsDeletingDoc(true);
+    try {
+      if (deleteTargetDoc.imagePath) {
+        await deletePrivateFile(deleteTargetDoc.imagePath);
+      }
+      await database.write(() => deleteTargetDoc.destroyPermanently());
+      setDeleteTargetDoc(null);
+    } catch (err) {
+      console.warn('[DocumentsScreen] Delete doc error:', err);
+    } finally {
+      setIsDeletingDoc(false);
+    }
+  }, [deleteTargetDoc]);
 
   // ── Prepare image URL list for ImageViewer ────────────────────────────────
   const imageUrls = documents.map(doc => ({
@@ -323,6 +329,24 @@ export function DocumentsScreen({ userId }: DocumentsScreenProps) {
           />
         </View>
       </Modal>
+
+      {/* Delete Document Custom Modal (Danger: 2 buttons, Cancel gray & Delete Red) */}
+      <CustomModal
+        visible={Boolean(deleteTargetDoc)}
+        title="Delete Document"
+        icon="🗑️"
+        variant="danger"
+        message={
+          deleteTargetDoc
+            ? `Delete "${deleteTargetDoc.title || 'this document'}"? This cannot be undone.`
+            : ''
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        loading={isDeletingDoc}
+        onConfirm={handleConfirmDeleteDoc}
+        onCancel={() => setDeleteTargetDoc(null)}
+      />
     </View>
   );
 }
