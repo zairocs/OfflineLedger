@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   StyleSheet,
-  TouchableWithoutFeedback,
   ActivityIndicator,
 } from 'react-native';
 import { darkColors } from '../theme/colors';
@@ -101,64 +100,64 @@ export function CustomModal({
       statusBarTranslucent
       onRequestClose={handleBackdropPress}
     >
-      <TouchableWithoutFeedback onPress={handleBackdropPress}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.dialogCard}>
-              {/* Dynamic Icon Badge */}
-              <View
-                style={[
-                  styles.iconCircle,
-                  {
-                    backgroundColor: currentVariant.iconBg,
-                    borderColor: currentVariant.iconBorder,
-                  },
-                ]}
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={handleBackdropPress}
+      >
+        <TouchableOpacity style={styles.dialogCard} activeOpacity={1}>
+          {/* Dynamic Icon Badge */}
+          <View
+            style={[
+              styles.iconCircle,
+              {
+                backgroundColor: currentVariant.iconBg,
+                borderColor: currentVariant.iconBorder,
+              },
+            ]}
+          >
+            <Text style={styles.iconText}>{displayIcon}</Text>
+          </View>
+
+          {/* Title & Message */}
+          <Text style={styles.title}>{title}</Text>
+          {Boolean(message) && <Text style={styles.message}>{message}</Text>}
+
+          {/* Actions Row */}
+          <View style={styles.actionsRow}>
+            {!isSingleButton && onCancel && (
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={onCancel}
+                disabled={loading}
+                activeOpacity={0.7}
               >
-                <Text style={styles.iconText}>{displayIcon}</Text>
-              </View>
+                <Text style={styles.cancelText}>{cancelText}</Text>
+              </TouchableOpacity>
+            )}
 
-              {/* Title & Message */}
-              <Text style={styles.title}>{title}</Text>
-              {Boolean(message) && <Text style={styles.message}>{message}</Text>}
-
-              {/* Actions Row */}
-              <View style={styles.actionsRow}>
-                {!isSingleButton && onCancel && (
-                  <TouchableOpacity
-                    style={styles.cancelBtn}
-                    onPress={onCancel}
-                    disabled={loading}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.cancelText}>{cancelText}</Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={[
-                    styles.confirmBtn,
-                    { backgroundColor: currentVariant.confirmBg },
-                    isSingleButton && styles.fullWidthBtn,
-                    loading && styles.disabledBtn,
-                  ]}
-                  onPress={onConfirm}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                >
-                  {loading ? (
-                    <ActivityIndicator size="small" color={currentVariant.confirmText} />
-                  ) : (
-                    <Text style={[styles.confirmText, { color: currentVariant.confirmText }]}>
-                      {defaultConfirmText}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            <TouchableOpacity
+              style={[
+                styles.confirmBtn,
+                { backgroundColor: currentVariant.confirmBg },
+                isSingleButton && styles.fullWidthBtn,
+                loading && styles.disabledBtn,
+              ]}
+              onPress={onConfirm}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={currentVariant.confirmText} />
+              ) : (
+                <Text style={[styles.confirmText, { color: currentVariant.confirmText }]}>
+                  {defaultConfirmText}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
