@@ -171,20 +171,22 @@ export function SettingsScreen() {
   // ── Restore ──────────────────────────────────────────────────────────────
   const handleConfirmRestore = useCallback(async () => {
     setRestoreConfirmVisible(false);
-    setRestoring(true);
-    try {
-      await restoreBackup();
-      setRestoreSuccessVisible(true);
-    } catch (err: any) {
-      setCustomAlert({
-        title: 'Restore Failed',
-        message: err?.message ?? 'Could not restore from the selected backup file.',
-        icon: '⚠️',
-        variant: 'danger',
-      });
-    } finally {
-      setRestoring(false);
-    }
+    setTimeout(async () => {
+      setRestoring(true);
+      try {
+        await restoreBackup();
+        setRestoreSuccessVisible(true);
+      } catch (err: any) {
+        setCustomAlert({
+          title: 'Restore Failed',
+          message: err?.message ?? 'Could not restore from the selected backup file.',
+          icon: '⚠️',
+          variant: 'danger',
+        });
+      } finally {
+        setRestoring(false);
+      }
+    }, 150);
   }, []);
 
   // ── Reset PIN ────────────────────────────────────────────────────────────
@@ -315,12 +317,15 @@ export function SettingsScreen() {
       <SectionLabel text="About App" />
 
       <View style={styles.card}>
-        <SettingRow
-          icon="📱"
-          title="OfflineLedger"
-          subtitle="Version 1.0.0 — Privacy Focused Ledger"
-          rightContent={<View />}
-        />
+        <View style={styles.aboutHeaderRow}>
+          <View style={styles.aboutLogoContainer}>
+            <Image source={require('../assets/logo.png')} style={styles.aboutLogo} resizeMode="cover" />
+          </View>
+          <View style={styles.aboutHeaderText}>
+            <Text style={styles.aboutTitle}>OfflineLedger</Text>
+            <Text style={styles.aboutSubtitle}>Version 1.0.0 — Privacy Focused Ledger</Text>
+          </View>
+        </View>
         <View style={styles.divider} />
         <SettingRow
           icon="🔒"
@@ -331,6 +336,9 @@ export function SettingsScreen() {
       </View>
 
       <View style={styles.footerContainer}>
+        <View style={styles.footerLogoContainer}>
+          <Image source={require('../assets/logo.png')} style={styles.footerLogo} resizeMode="cover" />
+        </View>
         <Text style={styles.footerBrand}>OfflineLedger v1.0.0</Text>
         <Text style={styles.footerDev}>Engineered by CORE TECH AI Team</Text>
         <Text style={styles.footerCopy}>© {new Date().getFullYear()} CORE TECH. All Rights Reserved.</Text>
@@ -381,7 +389,7 @@ export function SettingsScreen() {
         }}
       />
 
-      {/* ── Reset PIN Confirmation Popup (Destructive: Red Delete/Reset Button) ── */}
+      {/* ── Reset PIN Confirmation Popup ─────────────────────────────────── */}
       <CustomModal
         visible={resetPinConfirmVisible}
         title="Reset PIN Code"
@@ -403,7 +411,7 @@ export function SettingsScreen() {
         onCancel={() => setResetPinConfirmVisible(false)}
       />
 
-      {/* ── Custom Alert Popup (Info/Notification: Single Gray Button) ─────── */}
+      {/* ── Custom Alert Popup ───────────────────────────────────────────── */}
       <CustomModal
         visible={!!customAlert}
         title={customAlert?.title ?? 'Notification'}
@@ -508,20 +516,41 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: darkColors.textDisabled,
   },
-  activeCheck: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: darkColors.primaryContainer,
+
+  aboutHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing[4],
+    gap: spacing[3],
+  },
+  aboutLogoContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#101010',
     borderWidth: 1,
-    borderColor: darkColors.primary,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkText: {
-    fontSize: 14,
+  aboutLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  aboutHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  aboutTitle: {
+    ...typography.labelLarge,
+    color: darkColors.textPrimary,
     fontWeight: fontWeight.bold,
-    color: darkColors.primary,
+  },
+  aboutSubtitle: {
+    ...typography.labelSmall,
+    color: darkColors.textDisabled,
   },
 
   footerContainer: {
@@ -530,6 +559,23 @@ const styles = StyleSheet.create({
     marginTop: spacing[8],
     marginBottom: spacing[4],
     gap: spacing[1],
+  },
+  footerLogoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#101010',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[1],
+  },
+  footerLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   footerBrand: {
     ...typography.labelMedium,
