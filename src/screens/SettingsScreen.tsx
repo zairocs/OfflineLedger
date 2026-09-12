@@ -319,7 +319,7 @@ export function SettingsScreen() {
       <View style={styles.card}>
         <View style={styles.aboutHeaderRow}>
           <View style={styles.aboutLogoContainer}>
-            <Image source={require('../assets/logo.png')} style={styles.aboutLogo} resizeMode="cover" />
+            <Text style={{ fontSize: 24 }}>🛡️</Text>
           </View>
           <View style={styles.aboutHeaderText}>
             <Text style={styles.aboutTitle}>OfflineLedger</Text>
@@ -337,7 +337,7 @@ export function SettingsScreen() {
 
       <View style={styles.footerContainer}>
         <View style={styles.footerLogoContainer}>
-          <Image source={require('../assets/logo.png')} style={styles.footerLogo} resizeMode="cover" />
+          <Text style={{ fontSize: 26 }}>🛡️</Text>
         </View>
         <Text style={styles.footerBrand}>OfflineLedger v1.0.0</Text>
         <Text style={styles.footerDev}>Engineered by CORE TECH AI Team</Text>
