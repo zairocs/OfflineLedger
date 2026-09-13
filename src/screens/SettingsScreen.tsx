@@ -1,6 +1,6 @@
 // OfflineLedger — Settings Screen
 // Backup/restore, PIN management, Fingerprint setup, and App Info.
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Switch,
-  DevSettings,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReactNativeBiometrics from 'react-native-biometrics';
@@ -18,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
 import { exportBackup, restoreBackup } from '../utils/exportBackup';
+import { restartApp } from '../utils/restartApp';
 import { CustomModal, ModalVariant } from '../components/CustomModal';
 import { storage, StorageKeys } from '../utils/storage';
 import { formatDate, formatTime } from '../utils/formatters';
@@ -169,25 +169,46 @@ export function SettingsScreen() {
   }, []);
 
   // ── Restore ──────────────────────────────────────────────────────────────
-  const handleConfirmRestore = useCallback(async () => {
-    setRestoreConfirmVisible(false);
-    setTimeout(async () => {
-      setRestoring(true);
-      try {
-        await restoreBackup();
+  const restoreStartedRef = useRef(false);
+
+  const runRestore = useCallback(async () => {
+    if (restoreStartedRef.current) return;
+    restoreStartedRef.current = true;
+
+    setRestoring(true);
+    try {
+      const result = await restoreBackup();
+      if (result === 'cancelled') return;
+      if (result === 'restored') {
         setRestoreSuccessVisible(true);
-      } catch (err: any) {
-        setCustomAlert({
-          title: 'Restore Failed',
-          message: err?.message ?? 'Could not restore from the selected backup file.',
-          icon: '⚠️',
-          variant: 'danger',
-        });
-      } finally {
-        setRestoring(false);
+        return;
       }
-    }, 150);
+      setCustomAlert({
+        title: 'Restore Failed',
+        message: 'Could not restore from the selected backup file.',
+        icon: '⚠️',
+        variant: 'danger',
+      });
+    } catch (err: any) {
+      setCustomAlert({
+        title: 'Restore Failed',
+        message: err?.message ?? 'Could not restore from the selected backup file.',
+        icon: '⚠️',
+        variant: 'danger',
+      });
+    } finally {
+      setRestoring(false);
+    }
   }, []);
+
+  const handleConfirmRestore = useCallback(() => {
+    restoreStartedRef.current = false;
+    setRestoreConfirmVisible(false);
+
+    setTimeout(() => {
+      void runRestore();
+    }, 450);
+  }, [runRestore]);
 
   // ── Reset PIN ────────────────────────────────────────────────────────────
   const handleResetPin = useCallback(() => {
@@ -361,33 +382,46 @@ export function SettingsScreen() {
       />
 
       {/* ── Restore Confirmation Custom Popup ─────────────────────────────── */}
-      <CustomModal
-        visible={restoreConfirmVisible}
-        title="Restore Backup"
-        icon="📥"
-        variant="warning"
-        message="This will replace ALL current client records, notes, and balances with the backup file. This cannot be undone."
-        confirmText="Restore Data"
-        cancelText="Cancel"
-        loading={restoring}
-        onConfirm={handleConfirmRestore}
-        onCancel={() => setRestoreConfirmVisible(false)}
-      />
+      {restoreConfirmVisible ? (
+        <CustomModal
+          visible
+          title="Restore Backup"
+          icon="📥"
+          variant="warning"
+          message="This will replace ALL current client records, notes, and balances with the backup file. This cannot be undone."
+          confirmText="Restore Data"
+          cancelText="Cancel"
+          onConfirm={handleConfirmRestore}
+          onCancel={() => setRestoreConfirmVisible(false)}
+        />
+      ) : null}
 
-      {/* ── Restore Success Reload Custom Popup ───────────────────────────── */}
-      <CustomModal
-        visible={restoreSuccessVisible}
-        title="Restore Complete"
-        icon="🎉"
-        variant="success"
-        singleButton
-        message="Your database, profile photos, and documents have been restored successfully! Tap OK to reload the app and load your records."
-        confirmText="OK & Reload App"
-        onConfirm={() => {
-          setRestoreSuccessVisible(false);
-          DevSettings.reload();
-        }}
-      />
+      {restoreSuccessVisible ? (
+        <CustomModal
+          visible
+          title="Restore Complete"
+          icon="🎉"
+          variant="success"
+          singleButton
+          message="Your records, profile photos, and documents are ready. Tap OK to restart the app and load them. If the app does not restart, close it from Recents and open it again."
+          confirmText="OK & Restart App"
+          onConfirm={() => {
+            try {
+              restartApp();
+            } catch (e: any) {
+              setRestoreSuccessVisible(false);
+              setCustomAlert({
+                title: 'Restart the App',
+                message:
+                  e?.message ??
+                  'Please close OfflineLedger from Recents, then open it again to load the restored data.',
+                icon: '🔄',
+                variant: 'info',
+              });
+            }
+          }}
+        />
+      ) : null}
 
       {/* ── Reset PIN Confirmation Popup ─────────────────────────────────── */}
       <CustomModal

@@ -26,6 +26,7 @@ export interface CustomModalProps {
   loading?: boolean;
   onConfirm: () => void;
   onCancel?: () => void;
+  onDismiss?: () => void;
 }
 
 const variantStyles: Record<
@@ -80,6 +81,7 @@ export function CustomModal({
   loading = false,
   onConfirm,
   onCancel,
+  onDismiss,
 }: CustomModalProps) {
   const currentVariant = variantStyles[variant] || variantStyles.info;
   const displayIcon = icon || currentVariant.defaultIcon;
@@ -99,6 +101,7 @@ export function CustomModal({
       animationType="fade"
       statusBarTranslucent
       onRequestClose={handleBackdropPress}
+      onDismiss={onDismiss}
     >
       <TouchableOpacity
         style={styles.overlay}

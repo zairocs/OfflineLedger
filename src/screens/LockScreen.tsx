@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Animated,
@@ -11,8 +12,10 @@ import {
   Alert,
   AppState,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import { useAuthStore } from '../store/useAuthStore';
+import { CustomModal } from '../components/CustomModal';
 import { darkColors } from '../theme/colors';
 import { typography, fontWeight } from '../theme/typography';
 import { spacing, radius, shadow } from '../theme/spacing';
@@ -115,8 +118,6 @@ function KeyButton({
     }).start();
   };
 
-  if (!val) return <View style={styles.padKey} />;
-
   return (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -154,9 +155,13 @@ function NumberPad({
 }) {
   return (
     <View style={styles.pad}>
-      {KEYS.map((key, idx) => (
-        <KeyButton key={idx} val={key} onPress={onKey} disabled={disabled} />
-      ))}
+      {KEYS.map((key, idx) =>
+        key ? (
+          <KeyButton key={idx} val={key} onPress={onKey} disabled={disabled} />
+        ) : (
+          <View key={idx} style={styles.padKey} />
+        ),
+      )}
     </View>
   );
 }
@@ -164,6 +169,7 @@ function NumberPad({
 // ── Lock Screen ───────────────────────────────────────────────────────────────
 
 export function LockScreen() {
+  const insets = useSafeAreaInsets();
   const {
     isPinSet,
     setPin,
@@ -182,6 +188,7 @@ export function LockScreen() {
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('Verifying Security PIN...');
   const [biometricAvail, setBioAvail] = useState(false);
+  const [showBioPrompt, setShowBioPrompt] = useState(false);
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -299,17 +306,7 @@ export function LockScreen() {
           await setPin(next);
           // Ask user to enable biometric unlock if sensor available
           if (biometricAvail && !isBiometricEnabled) {
-            Alert.alert(
-              'Fingerprint Unlock',
-              'Would you like to enable fingerprint unlock for quick access?',
-              [
-                { text: 'No Thanks', style: 'cancel' },
-                {
-                  text: 'Enable',
-                  onPress: () => setBiometricEnabled(true),
-                },
-              ],
-            );
+            setShowBioPrompt(true);
           }
         } else {
           triggerShake();
@@ -363,14 +360,16 @@ export function LockScreen() {
     confirm: 'Re-enter your 4-digit PIN to confirm',
   };
 
+  const topPadding = Math.max(insets.top, 24) + spacing[6];
+
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={darkColors.background} />
+    <View style={[styles.screen, { paddingTop: topPadding }]}>
+      <StatusBar barStyle="light-content" backgroundColor={darkColors.background} translucent />
 
       {/* Header Logo */}
       <View style={styles.logoArea}>
         <View style={styles.logoCircle}>
-          <Text style={styles.logoEmoji}>🛡️</Text>
+          <Image source={require('../assets/logo.png')} style={{ width: 68, height: 68, borderRadius: 34 }} resizeMode="cover" />
         </View>
         <Text style={styles.appName}>RB Co.</Text>
         <Text style={styles.tagline}>Encrypted & Saved 100% Offline</Text>
@@ -429,6 +428,22 @@ export function LockScreen() {
           )}
         </>
       )}
+
+      {/* Fingerprint Setup Prompt Custom Modal */}
+      <CustomModal
+        visible={showBioPrompt}
+        title="Fingerprint Unlock"
+        icon="☝️"
+        variant="info"
+        message="Would you like to enable fingerprint unlock for quick access?"
+        confirmText="Enable"
+        cancelText="No Thanks"
+        onConfirm={() => {
+          setShowBioPrompt(false);
+          setBiometricEnabled(true);
+        }}
+        onCancel={() => setShowBioPrompt(false)}
+      />
     </View>
   );
 }

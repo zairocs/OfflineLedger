@@ -8,8 +8,8 @@
 // Phase 10: initialize i18next before anything renders
 import './src/locales/i18n';
 
-import React, { useEffect } from 'react';
-import { AppState, StatusBar, useColorScheme, NativeModules } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { AppState, StatusBar, useColorScheme, NativeModules, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import { AppDarkTheme, AppLightTheme } from './src/theme';
 import { darkColors, lightColors } from './src/theme/colors';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useThemeStore } from './src/store/useThemeStore';
+import { applyPendingRestore } from './src/utils/exportBackup';
 
 const NAV_DARK_THEME = {
   dark: true,
@@ -57,13 +58,25 @@ const NAV_LIGHT_THEME = {
 };
 
 function App() {
+  const [bootReady, setBootReady] = useState(false);
   const initFromStorage = useAuthStore(state => state.initFromStorage);
   const { themeMode, initTheme } = useThemeStore();
   const systemColorScheme = useColorScheme();
 
   useEffect(() => {
-    initFromStorage();
-    initTheme();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await applyPendingRestore();
+      } catch (e) {
+        console.warn('[App] Pending restore failed:', e);
+      }
+      if (cancelled) return;
+      initFromStorage();
+      initTheme();
+      setBootReady(true);
+    })();
 
     // Auto-lock ONLY when returning after device screen was locked (not on simple minimize to recent apps)
     const subscription = AppState.addEventListener('change', async nextAppState => {
@@ -83,6 +96,7 @@ function App() {
     });
 
     return () => {
+      cancelled = true;
       subscription.remove();
     };
   }, [initFromStorage, initTheme]);
@@ -93,6 +107,15 @@ function App() {
   const navTheme = isDark ? NAV_DARK_THEME : NAV_LIGHT_THEME;
 
   // Note: App only requires PIN unlock on complete cold start / app launch or manual lock
+
+  if (!bootReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#121212', alignItems: 'center', justifyContent: 'center' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#121212" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
